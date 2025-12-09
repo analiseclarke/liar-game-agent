@@ -110,9 +110,11 @@ class LieGameEnv:
             "currRank": self.currRank,
             "pileSize": len(self.pile),
             "lastClaim": self.lastClaim, #(playerId, rank, count) or none
+            "lastPlayedCards": self.lastPlayedCards if self.lastPlayedCards else None,
             "lastLieOutcome": self.lastLieOutcome, #dictionary or none
             "end": self.end,
             "winner": self.winner,
+            "awaitingChallenge": self.awaitingChallenge
         }
 
 
@@ -205,6 +207,24 @@ class LieGameEnv:
             return
         else:
             print("error")
+
+    def copyState(self):
+        #deep copy of the current state
+        state = {
+            "hands": [list(hand for hand in self.hands)],
+            "handSizes": list(self.handSizes),
+            "currPlayer": self.currPlayer, 
+            "currRank": self.currRank,
+            "pile": list(self.pile),
+            "lastClaim": self.lastClaim,
+            "lastPlayedCards":list(self.lastPlayedCards) if self.lastPlayedCards else None,
+            "awaitingChallenge": self.awaitingChallenge,
+            "lastLieOutcome": dict(self.lastLieOutcome) if self.lastLieOutcome else None,
+            "end": self.end,
+            "winner": self.winner
+        }
+        return state
+   
 
 
 def main():
