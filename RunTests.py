@@ -60,6 +60,88 @@ def test1():
 
     print("test 1 DONE\n")
 
+def test2():
+    print("test 2: random agents")
+
+    numPlayers = 3
+    env = LieGameEnv(numPlayers)
+
+    agents = [RandomAgent(i) for i in range(numPlayers)]
+
+    turn = 0
+    max_turns = 200
+
+    while not env.end and turn < max_turns:
+        currPlayer = env.currPlayer
+        obs = env.getObs(currPlayer)
+
+        print(f"\nTurn {turn}: Player {currPlayer}'s turn")
+        print(f"Hand size: {len(obs['hand'])}")
+        print(f"Current rank: {obs['currRank']}")
+        print(f"Awaiting challenge? {obs['awaitingChallenge']}")
+
+        action = agents[currPlayer].getAction(obs)
+        print("Action:", action)
+
+        if action[0] == "PLAY":
+            _, claimedRank, cards = action
+            env.step(currPlayer, "PLAY", claimedRank, cards)
+        else:
+            #("CALL",) or ("NOCALL",)
+            env.step(currPlayer, action[0])
+
+        turn += 1
+
+        if env.winner is not None:
+            print(f"\nGame over in {turn} turns: winner is player {env.winner}")
+        else:
+            print(f"\nGame stopped after {turn} turns (no winner)")
+
+        print("test 2 DONE\n")
+def test3():
+    print("test 3: optimal agent")
+    #player 0 is the optimal agent, other player are random
+
+    numPlayers = 3
+    env = LieGameEnv(numPlayers)
+
+    agents = []
+    for i in range(numPlayers):
+        if i == 0:
+            agents.append(OptimalAgent(i))
+        else:
+            agents.append(RandomAgent(i))
+
+    turn = 0
+    max_turns = 200
+
+    while not env.end and turn < max_turns:
+        currPlayer = env.currPlayer
+        obs = env.getObs(currPlayer)
+
+        print(f"\nTurn {turn}: Player {currPlayer}'s turn")
+        print(f"Hand size: {len(obs['hand'])}")
+        print(f"Current rank: {obs['currRank']}")
+        print(f"Awaiting challenge? {obs['awaitingChallenge']}")
+
+        action = agents[currPlayer].getAction(obs)
+        print("Action:", action)
+
+        if action[0] == "PLAY":
+            _, claimedRank, cards = action
+            env.step(currPlayer, "PLAY", claimedRank, cards)
+        else:
+            env.step(currPlayer, action[0])
+
+        turn += 1
+
+    if env.winner is not None:
+        print(f"\nGame over in {turn} turns: winner is player {env.winner}")
+    else:
+        print(f"\nGame stopped after {turn} turns (no winner)")
+    print("test 3 DONE\n")
 
 if __name__ == "__main__":
     test1()
+    test2()
+    test3()
