@@ -15,7 +15,7 @@ def runSimulation(useOptimal=True):
 
     #print("Random Agents")
     turn = 0
-    while not env.end and turn < 100:
+    while not env.end and turn < 200:
         currPlayer = env.currPlayer
         obs = env.getObs(currPlayer)
 

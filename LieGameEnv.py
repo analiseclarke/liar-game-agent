@@ -127,7 +127,9 @@ class LieGameEnv:
         
         if action == "PLAY":
             #cards is a list of the cards being played
-            player = self.currPlayer
+            if cards is None or len(cards) == 0:
+                raise ValueError("PLAY must include at least one card")
+            player = self.currPlayer #player that is making the claim
 
             #remove cards from the players hand
             for c in cards:
@@ -148,13 +150,16 @@ class LieGameEnv:
             self.awaitingChallenge = True
             self.lastLieOutcome = None
 
+            #set the current player to the challenger
+            self.currPlayer = self.nextPlayer(player)
+
             self.checkWin()
             return
         
         #here we are in awaiting challenge
 
         claimerId, claimedRank, claimedCount = self.lastClaim
-        challengerId = self.nextPlayer(claimerId) #only the next player can challenge
+        challengerId = self.currPlayer #only the next player can challenge
 
         if action == "CALL":
      
@@ -211,7 +216,7 @@ class LieGameEnv:
     def copyState(self):
         #deep copy of the current state
         state = {
-            "hands": [list(hand for hand in self.hands)],
+            "hands": [list(hand) for hand in self.hands],
             "handSizes": list(self.handSizes),
             "currPlayer": self.currPlayer, 
             "currRank": self.currRank,

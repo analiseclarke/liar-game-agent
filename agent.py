@@ -28,7 +28,7 @@ class RandomAgent:
         #all cards of the current rank
         cardsOfRank = [c for c in hand if c == currRank]
 
-        if currRank:
+        if cardsOfRank:
             #truth: play however many we have
             cardsToPlay = cardsOfRank
             claimedRank = currRank
