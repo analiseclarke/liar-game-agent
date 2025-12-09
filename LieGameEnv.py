@@ -227,6 +227,7 @@ class LieGameEnv:
    
 
 
+"""
 def main():
     env = LieGameEnv(numPlayers=3)
     print("Initial hands:", env.hands)
@@ -272,3 +273,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+"""
