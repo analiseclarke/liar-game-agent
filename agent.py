@@ -77,6 +77,7 @@ class OptimalAgent:
 
         #update beliefs from new state
         self.updateBelief(state)
+        self.updateGame(state)
 
         if state.get("awaitingChallenge", False):
             return self.challenge(state)
@@ -152,9 +153,10 @@ class OptimalAgent:
         claimerId, claimedRank, claimedCount = lastClaim
         resultTruth = (lastLieOutcome["result"] == "truth")
 
-        if claimerId == self.agentId:
-            #We don't update our own opponent model here
-            return
+        if claimerId == self.agentId and self.lastActionWasBluff:
+            bluffSuccess = (lastLieOutcome["challenger"] is None) or (lastLieOutcome["result"] =="lie")
+            self.bluffSuccessHistory.append(1 if bluffSuccess else 0)
+            self.lastActionWasBluff = False
         
         opp = self.opponents.get(claimerId)
         if opp is None:
@@ -165,6 +167,7 @@ class OptimalAgent:
             opp["truthCount"] += 1.0
         else:
             opp["bluffCount"] += 1.0
+
 
     
     def challenge(self, state):
@@ -288,11 +291,11 @@ class OptimalAgent:
     def updateGame(self, state):
         totalCards = sum(state["handSizes"])
         if totalCards > 39:
-            self.gameState = 0
+            self.Phase = 0
         elif totalCards > 13:
-            self.gameState = 1
+            self.gamePhase = 1
         else:
-            self.gameStage = 2
+            self.gamePhase = 2
 
         self.pileSize = state.get("pileSize", 0)
 
@@ -302,7 +305,7 @@ class OptimalAgent:
 
     def decideBluff(self, state, currCards, currRank, avgBluffRate):
         hand = state["hand"]
-        handSize = len(hand)
+       
 
         hasCards = len(currCards)>0
         if hasCards:
@@ -375,22 +378,7 @@ class OptimalAgent:
                 oppBluffRates.append(bluffRate)
         return oppBluffRates
     
-    def updateAfterChalenge(self, lastClaim, lastLieOutcome):
-        claimerId, claimedRank, claimedCount = lastClaim
-        resultTruth = (lastLieOutcome["result"] == "truth")
-        if claimerId == self.agentId and self.lastActionWasBluff:
-            bluffSuccess = (lastLieOutcome["challenger"] is None) or (lastLieOutcome["result"] =="lie")
-            self.bluffSuccessHistory.append(1 if bluffSuccess else 0)
-            self.lastActionWasBluff = False
 
-        if claimerId != self.agentId:
-            opp = self.opponents.get(claimerId)
-            if opp:
-                opp["claimes"] += 1
-                if resultTruth:
-                    opp["truthCount"] += 1.0
-                else:
-                    opp["bluffCount"] +=1.0
 
 
 
