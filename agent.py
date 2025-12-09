@@ -60,18 +60,18 @@ class OptimalAgent:
         self.currRank = 1
         self.handSizes = []
 
-        def getAction(self, state):
-            #on first call, initialize beliefs
-            if self.numPlayers is None:
-                self.initialize(state)
+    def getAction(self, state):
+        #on first call, initialize beliefs
+        if self.numPlayers is None:
+            self.initialize(state)
 
-            #update beliefs from new state
-            self.updateBelief(state)
+        #update beliefs from new state
+        self.updateBelief(state)
 
-            if state.get("awaitingChallenge", False):
-                return self.challenge(state)
-            else:
-                return self.play(state)
+        if state.get("awaitingChallenge", False):
+            return self.challenge(state)
+        else:
+            return self.play(state)
     
     def initialize(self, state):
         self.numPlayers = len(state["handSizes"])
