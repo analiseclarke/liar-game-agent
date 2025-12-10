@@ -7,9 +7,11 @@ def runSimulation(useOptimal=True, printing=True, maxTurns=200):
     
     #make agents
     agents = []
+    optimal = useOptimal
     for i in range(numPlayers):
-        if useOptimal:
+        if optimal:
             agents.append(OptimalAgent(i))
+            optimal = False
         else:
             agents.append(RandomAgent(i))
 
