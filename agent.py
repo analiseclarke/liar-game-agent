@@ -61,8 +61,7 @@ class OptimalAgent:
         self.handSizes = []
 
         self.bluffAggression = 1.0
-        #self.minBluffCards = 1
-        #self.maxBluffCards = 4
+        
 
         self.gamePhase = 0
         self.myPosition = 0
