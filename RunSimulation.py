@@ -1,8 +1,8 @@
 from LieGameEnv import LieGameEnv
 from agent import RandomAgent, OptimalAgent
 
-def runSimulation(useOptimal=True):
-    numPlayers = 3
+def runSimulation(useOptimal=True, printing=True, maxTurns=200):
+    numPlayers = 4
     env = LieGameEnv(numPlayers)
     
     #make agents
@@ -19,13 +19,16 @@ def runSimulation(useOptimal=True):
         currPlayer = env.currPlayer
         obs = env.getObs(currPlayer)
 
-        print(f"\nTurn {turn}: Player {currPlayer}'s turn")
-        print(f"Hand size: {len(obs['hand'])}")
-        print(f"Current rank: {obs['currRank']}")
-        print(f"Awating challenge? {obs.get('awaitingChallenge', False)}")
+        if printing:
+            print(f"\nTurn {turn}: Player {currPlayer}'s turn")
+            print(f"Hand size: {len(obs['hand'])}")
+            print(f"Current rank: {obs['currRank']}")
+            print(f"Awating challenge? {obs.get('awaitingChallenge', False)}")
 
         action = agents[currPlayer].getAction(obs)
-        print(f"Action: {action}")
+
+        if printing:
+            print(f"Action: {action}")
 
         if action[0] == "PLAY":
             #action: ("PLAY", claimedRank, cards)
@@ -40,6 +43,6 @@ def runSimulation(useOptimal=True):
         print(f"\nGame over: Winner is player {env.winner}")
     else: 
         print(f"\nGame stopped after {turn} turns")
-    return env.winner
+    return env.winner, turn
 if __name__ == "__main__":
     runSimulation(useOptimal=True)
