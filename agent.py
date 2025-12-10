@@ -60,6 +60,15 @@ class OptimalAgent:
         self.currRank = 1
         self.handSizes = []
 
+        self.bluffAggression = 1.0
+        
+
+        self.gamePhase = 0
+        self.myPosition = 0
+        self.consecutiveTruths = 0
+        self.lastActionWasBluff = False
+        self.bluffSuccessHistory = []
+
     def getAction(self, state):
         #on first call, initialize beliefs
         if self.numPlayers is None:
@@ -67,6 +76,7 @@ class OptimalAgent:
 
         #update beliefs from new state
         self.updateBelief(state)
+        self.updateGame(state)
 
         if state.get("awaitingChallenge", False):
             return self.challenge(state)
@@ -88,7 +98,7 @@ class OptimalAgent:
         for player in range(self.numPlayers):
             if player != self.agentId:
                 self.opponents[player] = {
-                    "truthCount": 3.0,
+                    "truthCount": 5.0,
                     "bluffCount": 1.0,
                     "claims": 0,
                 } #initialize with ~ "likely truthful but can bluff"
@@ -142,9 +152,10 @@ class OptimalAgent:
         claimerId, claimedRank, claimedCount = lastClaim
         resultTruth = (lastLieOutcome["result"] == "truth")
 
-        if claimerId == self.agentId:
-            #We don't update our own opponent model here
-            return
+        if claimerId == self.agentId and self.lastActionWasBluff:
+            bluffSuccess = (lastLieOutcome["challenger"] is None) or (lastLieOutcome["result"] =="lie")
+            self.bluffSuccessHistory.append(1 if bluffSuccess else 0)
+            self.lastActionWasBluff = False
         
         opp = self.opponents.get(claimerId)
         if opp is None:
@@ -155,6 +166,7 @@ class OptimalAgent:
             opp["truthCount"] += 1.0
         else:
             opp["bluffCount"] += 1.0
+
 
     
     def challenge(self, state):
@@ -242,40 +254,134 @@ class OptimalAgent:
 
         """
         Logic:
-        If we have the current target rank:
-            play what we have truthfully.
-        If we have none of the target rank:
-            Choose 1 random card and claim currRank
+        Decide whether to bluff based on the aggressiveness of the other
+        players and the stage of the game
         """
 
         hand = state["hand"]
         currRank = state["currRank"]
+        
 
         #Find all cards matchinf the current target rank
         currCards = [c for c in hand if c == currRank]
 
         #compute an average bluff rate across all opponents
         #to see how dangerous it is to bluff
-        avgBluffRate = 0.0
-        count = 0
-        for pid, opp in self.opponents.items():
-            truthCount = opp["truthCount"]
-            bluffCount = opp["bluffCount"]
-            #mean for truth rate
+        bluffRates= self.getOpponentBluffRate()
+        avgBluffRate = sum(bluffRates) / len(bluffRates) if bluffRates else 0.5
 
-            truthRate = truthCount / (truthCount + bluffCount)
-            bluffRate = 1.0 - truthRate
-            avgBluffRate += bluffRate
-            count += 1
-
-        avgBluffRate = avgBluffRate / count if count > 0 else 0.3
-
-        if currCards:
-            #we can play truthfully
+        shouldBluff, bluffCards, claimedRank = self.decideBluff(state, currCards, currRank, avgBluffRate)
+        if shouldBluff:
+            cardsToPlay = bluffCards
+            claimedRank = currRank
+            self.lastActionWasBluff= True
+        else:
             cardsToPlay = currCards[:]
             claimedRank = currRank
-        else:
-            #we have no cards of the required hand, must bluff
-            cardsToPlay = [random.choice(hand)]
-            claimedRank = currRank
+            self.lastActionWasBluff = False
+            if cardsToPlay:
+                self.consecutiveTruths +=1
+            else: 
+                shouldBluff, cardsToPlay, claimedRank = self.forcedBluff(state, currRank)
+                self.lastActionWasBluff = shouldBluff
+
         return("PLAY", claimedRank, cardsToPlay)
+    
+    def updateGame(self, state):
+        totalCards = sum(state["handSizes"])
+        if totalCards > 39:
+            self.Phase = 0
+        elif totalCards > 13:
+            self.gamePhase = 1
+        else:
+            self.gamePhase = 2
+
+        self.pileSize = state.get("pileSize", 0)
+
+        #track the last 10 bluffs
+        if len(self.bluffSuccessHistory) > 10:
+            self.bluffSuccessHistory.pop(0)
+
+    def decideBluff(self, state, currCards, currRank, avgBluffRate):
+        hand = state["hand"]
+       
+
+        hasCards = len(currCards)>0
+        if hasCards:
+            truthProb = 0.8
+
+        else: 
+            truthProb = 0.0
+        pileRisk = self.pileSize / 20.0
+        truthProb +=0.3* (1-pileRisk)
+
+        bluffReward = (1.0 - avgBluffRate) *0.2
+        truthProb -=bluffReward
+
+        #game stage
+        if self.gamePhase == 0:
+            truthProb += 0.1
+        elif self.gamePhase == 2:
+            truthProb -=0.2
+
+        if self.bluffSuccessHistory:
+            recentSuccessRate = sum(self.bluffSuccessHistory) / len(self.bluffSuccessHistory)
+
+            if recentSuccessRate > 0.7:
+                truthProb -=0.1
+            elif recentSuccessRate < 0.3:
+                truthProb += 0.1
+        shouldBluff = random.random() > min(0.95, max(0.05, truthProb))
+
+        if not shouldBluff or hasCards:
+            return False, [], currRank
+        
+        bluffCards = self.chooseBluffCards(hand, currRank, avgBluffRate)
+        claimedRank = currRank
+
+        return True, bluffCards, claimedRank
+    
+    def chooseBluffCards(self, hand, currRank, avgBluffRate):
+        if self.gamePhase == 0:
+            bluffSize = random.randint(1, min(2, len(hand)))
+        elif self.gamePhase == 2:
+            bluffSize = random.randint(1, min(4, len(hand)))
+        else:
+            bluffSize = random.randint(1, (min(3, len(hand))))
+
+        if avgBluffRate < 0.3:
+            bluffSize = min(bluffSize + 1, len(hand), 4)
+        elif avgBluffRate > 0.7:
+            bluffSize = max(bluffSize -1, 1)
+        bluffCards = random.sample(hand, bluffSize)
+        return bluffCards
+    
+    def forcedBluff(self, state, currRank):
+        hand = state["hand"]
+        bluffRate = self.getOpponentBluffRate()
+        avgBluffRate = sum(bluffRate) / len(bluffRate) if bluffRate else 0.5
+
+        bluffCards =self.chooseBluffCards(hand, currRank, avgBluffRate)
+
+        return True, bluffCards, currRank
+    
+    def getOpponentBluffRate(self):
+        oppBluffRates = []
+        for pid, opp in self.opponents.items():
+            if opp["claims"] > 0:
+                truthCount = opp["truthCount"]
+                bluffCount = opp["bluffCount"]
+
+                perceivedBluffRate = bluffCount / (truthCount + bluffCount) if (truthCount + bluffCount) > 0 else 0.3
+                bluffRate = min(1.0, perceivedBluffRate *1.5)
+                oppBluffRates.append(bluffRate)
+        return oppBluffRates
+    
+
+
+
+
+            
+    
+
+        
